@@ -1,6 +1,6 @@
-// ---------------------------------------------------
-// ADX: Create External Table and Continous Export 
-// ---------------------------------------------------
+// ---------------------------------------------------------------------------
+// ADX: Create External Table and Continuous Export to Azure Storage Account
+// ---------------------------------------------------------------------------
  
 // example test data in ADX:
 // datetime,name,location,ip
