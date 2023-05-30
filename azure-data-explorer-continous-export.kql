@@ -1,0 +1,90 @@
+// ---------------------------------------------------
+// ADX: Create External Table and Continous Export 
+// ---------------------------------------------------
+ 
+// example test data in ADX:
+// datetime,name,location,ip
+// 1/1/2023 9:00,name_1,location_1,ip_1
+// 1/1/2023 9:03,name_1,location_2,ip_1
+// 1/1/2023 9:10,name_2,location_1,ip_1
+// 1/1/2023 9:54,name_3,location_3,ip_2
+// 1/1/2023 10:00,name_4,location_3,ip_2
+// 1/1/2023 10:04,name_1,location_3,ip_1
+// 1/1/2023 10:23,name_1,location_3,ip_3
+// 1/1/2023 10:23,name_4,location_4,ip_4
+// 1/1/2023 10:23,name_1,location_3,ip_5
+// 1/1/2023 10:23,name_5,location_5,ip_1
+// 1/1/2023 10:23,name_6,location_5,ip_1
+// 1/1/2023 11:23,name_2,location_3,ip_6
+// 1/1/2023 11:23,name_4,location_3,ip_2
+// 1/1/2023 11:54,name_2,location_3,ip_2
+ 
+// example csv file for external table in azure storage account:
+// datetime,unique_name,unique_location,unique_ip
+// 2022-01-01T09:00:00Z,"['name_1','name_2']",['location_1'],['ip_1','ip_2','ip_3']
+ 
+// external table (can also use web interface in ADX)
+ 
+.create-or-alter external table ['MyExternalTable'] (
+    ['datetime']:datetime,
+    ['unique_name']:dynamic,
+    ['unique_location']:dynamic,
+    ['unique_ip']:dynamic
+    )
+    kind = adl
+    dataformat = csv
+    (
+        h@'https://xxx.blob.core.windows.net/xxx?sp=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    )
+    with (IncludeHeaders='All')
+ 
+external_table('MyExternalTable')
+| getschema
+ 
+external_table('MyExternalTable')
+| take 10
+ 
+// continous export 
+ 
+.create-or-alter continuous-export MyExport
+over (testdata)
+to table MyExternalTable
+with (intervalBetweenRuns=1hr, forcedLatency=24hr)
+<| testdata
+| summarize ['unique_name']=make_set(['name']), 
+            ['unique_location']=make_set(['location']), 
+            ['unique_ip']=make_set(['ip']) by bin(['datetime'], 1h)
+ 
+external_table('MyExternalTable')
+| take 100
+ 
+// query examples
+ 
+let my_username = "name_1";
+let start_date = datetime("2023-01-01");
+let end_date = datetime("2023-02-01");
+external_table('MyExternalTable')
+| where ['datetime'] between (start_date .. end_date)
+| where ['unique_name'] has my_username
+| order by ['datetime'] asc 
+| summarize make_set(['datetime'])
+ 
+let my_location = "location_1";
+let start_date = datetime("2023-01-01");
+let end_date = datetime("2023-02-01");
+external_table('MyExternalTable') 
+| where ['datetime'] between (start_date .. end_date)
+| where ['unique_location'] has my_location
+| order by ['datetime'] asc 
+| summarize make_set(['datetime'])
+ 
+let my_ip = "ip_1";
+let start_date = datetime("2023-01-01");
+let end_date = datetime("2023-02-01");
+external_table('MyExternalTable') 
+| where ['datetime'] between (start_date .. end_date)
+| where ['unique_ip'] has my_ip
+| order by ['datetime'] asc 
+| summarize make_set(['datetime'])
+
+
