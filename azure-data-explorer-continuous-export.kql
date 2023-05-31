@@ -77,7 +77,7 @@ external_table('MyExternalTable')
 | where ['unique_location'] has my_location
 | order by ['datetime'] asc 
 | summarize make_set(['datetime'])
- 
+  
 let my_ip = "ip_1";
 let start_date = datetime("2023-01-01");
 let end_date = datetime("2023-02-01");
@@ -86,5 +86,27 @@ external_table('MyExternalTable')
 | where ['unique_ip'] has my_ip
 | order by ['datetime'] asc 
 | summarize make_set(['datetime'])
-
-
+ 
+// union across multiple tables:
+// note: need to change external table schema if adding source table name column 
+ 
+.create-or-alter continuous-export MyExport
+over (testdata)
+to table MyExternalTable
+with (intervalBetweenRuns=1hr, forcedLatency=24hr)
+<| 
+union (
+testdata
+| summarize ['unique_name']=make_set(['name']), 
+            ['unique_location']=make_set(['location']), 
+            ['unique_ip']=make_set(['ip']) by bin(['datetime'], 1h)
+| extend ['source_table_name']="testdata"
+    ),(
+testdata2
+| summarize ['unique_name']=make_set(['name']), 
+            ['unique_location']=make_set(['location']), 
+            ['unique_ip']=make_set(['ip']) by bin(['datetime'], 1h)
+| extend ['source_table_name']="testdata2"
+    )
+| where isnotempty( ['datetime'])
+ 
