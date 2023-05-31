@@ -1,0 +1,21 @@
+// -------------------------------------------------------------
+// ADX: KQL Melt Transformation Workaround (wide to long format)
+// -------------------------------------------------------------
+ 
+let test_data = datatable (column1:datetime, column2:string, column3:string)  
+[  
+ "2022-01-01T09:00:00Z", "1", "A",  
+ "2022-01-01T10:00:00Z", "2", "B",  
+ "2022-01-01T11:00:00Z", "3", "C",  
+]; 
+let melt = test_data
+| where isnotempty(column1)
+| evaluate narrow();
+let index_lookup = melt
+| where Column == "column1" 
+| project Row, Value;
+melt
+| join kind=inner index_lookup on Row 
+| where Column != "column1"
+| project-rename Date=Value1
+| project Date, Column, Value
